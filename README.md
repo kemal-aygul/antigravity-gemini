@@ -63,7 +63,7 @@ Gemini 4 model IDs look like `gemini-4-<family>-<effort>` (families: Hydrogen, N
 
 Gemini 4 Argon and Gemini 3.8 Flash are removed from Antigravity on 2026-11-30; the `gemini-argon` subagent stops working then.
 
-Plans: Hydrogen works on every Google AI plan, including Free; Neon and Carbon need a paid Google AI Pro or Ultra plan (Neon is also on Gemini Enterprise).
+Plans: Hydrogen works on every Google AI plan, including Free; Neon and Carbon need a paid Google AI Pro or Ultra plan (Neon is also on Gemini Enterprise). Google Workspace accounts do not include Antigravity; sign in with a personal Google account or a Google Cloud project.
 
 ## Safety
 
@@ -71,8 +71,16 @@ By default Gemini runs with Antigravity's sandbox on and without permission to e
 
 ## Update / remove
 
+Update, then restart Claude Code so the new version loads:
+
 ```
 /plugin marketplace update antigravity-gemini
+/plugin update antigravity-gemini@antigravity-gemini
+```
+
+Remove:
+
+```
 /plugin uninstall antigravity-gemini@antigravity-gemini
 ```
 
@@ -82,7 +90,7 @@ By default Gemini runs with Antigravity's sandbox on and without permission to e
 
 Bu plugin, Claude Code içinden Google Antigravity'deki Gemini modellerini ve ajanlarını alt ajan olarak kullanmanızı sağlar. Her kullanıcı kendi Google hesabıyla giriş yapar.
 
-**Gerekenler:** Git, uv, Antigravity CLI (`agy`) ve Antigravity'ye giriş. Tam liste ve resmî kurulum komutları [REQUIREMENTS.md](plugins/antigravity-gemini/REQUIREMENTS.md) dosyasında.
+**Gerekenler:** Git, uv, Antigravity CLI (`agy`) ve Antigravity'ye giriş (kişisel Google hesabı ya da Google Cloud projesi; Google Workspace hesapları Antigravity'yi kapsamaz). Tam liste ve resmî kurulum komutları [REQUIREMENTS.md](plugins/antigravity-gemini/REQUIREMENTS.md) dosyasında.
 
 **En kolay yol:** [INSTALL-PROMPT.md](INSTALL-PROMPT.md) dosyasındaki promptu yeni bir Claude Code oturumuna yapıştırın; Claude her kurulumdan önce onay alarak her şeyi kurar ve kontrol eder.
 
@@ -94,7 +102,7 @@ Bu plugin, Claude Code içinden Google Antigravity'deki Gemini modellerini ve aj
 /antigravity-gemini:setup
 ```
 
-`setup` komutu eksikleri bulur, onayınızı alıp Git, uv ve `agy`'yi kurar. Girişi siz yaparsınız: terminalde bir kez `agy` çalıştırın. Ardından Claude Code'u yeniden başlatıp `/antigravity-gemini:agy-check` ile test edin. Sonra Claude'a "Bu fonksiyonu Gemini'ye inceletir misin?" gibi isteklerde bulunabilirsiniz. Kalan Gemini kotanızı görmek için "Gemini kotam ne durumda?" diye sorabilirsiniz.
+`setup` komutu eksikleri bulur, onayınızı alıp Git, uv ve `agy`'yi kurar. Girişi siz yaparsınız: terminalde bir kez `agy` çalıştırın. Ardından Claude Code'u yeniden başlatıp `/antigravity-gemini:agy-check` ile test edin. Sonra Claude'a "Bu fonksiyonu Gemini'ye inceletir misin?" gibi isteklerde bulunabilirsiniz. Kalan Gemini kotanızı görmek için "Gemini kotam ne durumda?" diye sorabilirsiniz. Güncellemek için `/plugin marketplace update antigravity-gemini` ve `/plugin update antigravity-gemini@antigravity-gemini` komutlarını çalıştırıp Claude Code'u yeniden başlatın.
 
 **Alt ajanlar:** Her Gemini 4 ailesi için bir alt ajan gelir: `gemini-neon` (zor işler), `gemini-carbon` (Neon'a alternatif), `gemini-hydrogen` (hızlı ve rutin işler) ve `gemini-argon` (30 Kasım 2026'da kaldırılıyor). Hydrogen tüm planlarda (ücretsiz dahil) çalışır; Neon ve Carbon için ücretli Google AI Pro veya Ultra gerekir (Neon, Gemini Enterprise'da da var). Açıklamalarında yetenek ve maliyet bilgisi olduğu için Claude, işin zorluğuna göre uygun olanı seçebilir.
 

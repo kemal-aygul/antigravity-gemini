@@ -10,6 +10,8 @@ import asyncio
 import json
 import os
 import shutil
+import signal
+import subprocess
 from pathlib import Path
 from typing import Any
 
@@ -29,6 +31,17 @@ def _default_agy_paths() -> list[str]:
 VALID_EFFORTS = {"low", "medium", "high", "xhigh", "max"}
 VALID_MODES = {"accept-edits", "auto", "plan"}
 FRONTMATTER_KEYS = {"name", "description", "model", "mainAgent", "subagent"}
+BATCH_SUFFIXES = {".cmd", ".bat"}
+AUTH_HINT_TOKENS = (
+    "not signed in",
+    "sign in",
+    "sign-in",
+    "login",
+    "log in",
+    "unauthenticated",
+    "authentication",
+    "credential",
+)
 # Claude Code cuts every tool call at the "timeout" in .mcp.json (960 s); keep
 # agy's own limit plus the 15 s grace period below it.
 MAX_TIMEOUT_SECONDS = 940
@@ -51,31 +64,58 @@ def resolve_agy_binary() -> str:
     ]
     for candidate in candidates:
         if candidate and Path(candidate).is_file():
+            if Path(candidate).suffix.lower() in BATCH_SUFFIXES:
+                # cmd.exe would interpret &, |, % and similar characters inside the
+                # prompt, so batch wrappers are never run. The official CLI is agy.exe.
+                continue
             return str(Path(candidate))
     raise FileNotFoundError(
         "Antigravity CLI (agy) not found. Install it, sign in once by running "
-        "'agy' in a terminal, or set the AGY_BIN environment variable to its path."
+        "'agy' in a terminal, or set the AGY_BIN environment variable to the full "
+        "path of the agy executable (not a .cmd or .bat wrapper)."
     )
 
 
 def parse_frontmatter(path: Path) -> dict[str, str]:
-    """Extract lightweight YAML frontmatter metadata from a markdown agent file."""
+    """Extract top-level frontmatter fields from a markdown agent file.
+
+    Handles plain values and YAML block scalars (>, >-, |, |-) whose text sits on
+    the following indented lines. Indented lines never set a top-level key.
+    """
     text = path.read_text(encoding="utf-8", errors="replace")
     lines = text.splitlines()
     if not lines or lines[0].strip() != "---":
         return {}
 
     meta: dict[str, str] = {}
-    for line in lines[1:]:
-        stripped = line.strip()
-        if stripped == "---":
+    block_key = ""
+    block_style = ""
+    block_lines: list[str] = []
+
+    for line in [*lines[1:], "---"]:
+        is_end = line.strip() == "---"
+        if not is_end and line[:1] in (" ", "\t"):
+            if block_key:
+                block_lines.append(line.strip())
+            continue
+        if block_key:
+            joiner = "\n" if block_style.startswith("|") else " "
+            meta[block_key] = joiner.join(block_lines).strip()
+            block_key, block_style, block_lines = "", "", []
+        if is_end:
             break
+        stripped = line.strip()
         if ":" not in stripped or stripped.startswith("#"):
             continue
         key, _, value = stripped.partition(":")
         key = key.strip()
-        if key in FRONTMATTER_KEYS:
-            meta[key] = value.strip().strip("'\"")
+        value = value.strip()
+        if key not in FRONTMATTER_KEYS:
+            continue
+        if value in (">", ">-", ">+", "|", "|-", "|+"):
+            block_key, block_style = key, value
+        else:
+            meta[key] = value.strip("'\"")
     return meta
 
 
@@ -114,38 +154,64 @@ def _scan_agent_dirs(workspace_dir: str) -> list[dict[str, Any]]:
     return agents
 
 
+def _kill_process_tree(pid: int) -> None:
+    """Kill a process and every child it started; ignore processes already gone."""
+    if os.name == "nt":
+        subprocess.run(
+            ["taskkill", "/T", "/F", "/PID", str(pid)],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            check=False,
+        )
+        return
+    try:
+        os.killpg(pid, signal.SIGKILL)
+    except (ProcessLookupError, PermissionError):
+        try:
+            os.kill(pid, signal.SIGKILL)
+        except ProcessLookupError:
+            pass
+
+
 async def _run_subprocess(
     args: list[str],
     cwd: str | None = None,
     timeout_seconds: int = 300,
 ) -> tuple[int, str, str]:
-    """Run a subprocess safely without shell=True and enforce timeout."""
-    cmd = list(args)
-    if cmd[0].lower().endswith((".cmd", ".bat")):
-        cmd = ["cmd.exe", "/c", *cmd]
+    """Run a subprocess without a shell, enforce the timeout, and clean up children.
 
+    The process gets its own process group, so on timeout or cancellation the
+    whole tree (agy and anything it started) is killed, not only agy itself.
+    """
     env = dict(os.environ)
     env["PYTHONUTF8"] = "1"
 
+    kwargs: dict[str, Any] = {}
+    if os.name == "nt":
+        kwargs["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP
+    else:
+        kwargs["start_new_session"] = True
+
     proc = await asyncio.create_subprocess_exec(
-        *cmd,
+        *args,
+        stdin=asyncio.subprocess.DEVNULL,
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE,
         cwd=cwd or None,
         env=env,
+        **kwargs,
     )
     try:
         stdout_bytes, stderr_bytes = await asyncio.wait_for(
             proc.communicate(),
             timeout=timeout_seconds,
         )
-    except TimeoutError:
-        proc.terminate()
+    except (TimeoutError, asyncio.CancelledError):
+        _kill_process_tree(proc.pid)
         try:
             await asyncio.wait_for(proc.wait(), timeout=5)
-        except TimeoutError:
-            proc.kill()
-            await proc.wait()
+        except (TimeoutError, ProcessLookupError):
+            pass
         raise
 
     return (
@@ -156,7 +222,11 @@ async def _run_subprocess(
 
 
 def _extract_json_payload(stdout: str) -> Any:
-    """Parse JSON from stdout, skipping any leading non-JSON status lines."""
+    """Parse agy's JSON result from stdout, skipping any status lines around it.
+
+    When several JSON values appear, the last one wins: agy prints its result
+    last, and earlier status lines may also look like JSON.
+    """
     text = stdout.strip()
     if not text:
         return None
@@ -166,14 +236,20 @@ def _extract_json_payload(stdout: str) -> Any:
         pass
 
     decoder = json.JSONDecoder()
-    for idx, ch in enumerate(text):
-        if ch in "{[":
+    found: Any = None
+    idx = 0
+    while idx < len(text):
+        if text[idx] in "{[":
             try:
-                obj, _ = decoder.raw_decode(text[idx:])
-                return obj
+                obj, end = decoder.raw_decode(text, idx)
             except json.JSONDecodeError:
+                idx += 1
                 continue
-    return None
+            found = obj
+            idx = end
+        else:
+            idx += 1
+    return found
 
 
 @mcp.tool()
@@ -183,6 +259,13 @@ async def list_antigravity_agents(workspace_dir: str = "") -> str:
     Args:
         workspace_dir: Optional project directory to also scan .agents/agents/*.md.
     """
+    if workspace_dir.strip() and not Path(workspace_dir.strip()).is_dir():
+        return json.dumps(
+            {"ok": False, "error": f"workspace_dir does not exist or is not a directory: {workspace_dir}"},
+            ensure_ascii=False,
+            indent=2,
+        )
+
     try:
         agy_bin = resolve_agy_binary()
     except FileNotFoundError as exc:
@@ -203,7 +286,7 @@ async def list_antigravity_agents(workspace_dir: str = "") -> str:
 
     custom_agents = _scan_agent_dirs(workspace_dir)
     payload: dict[str, Any] = {
-        "ok": True,
+        "ok": cli_exit == 0,
         "agy_binary": agy_bin,
         "cli_exit_code": cli_exit,
         "cli_agents_output": cli_agents_output.strip(),
@@ -455,9 +538,9 @@ async def run_antigravity_agent(
         payload["note"] = timeout_note
 
     combined_err = f"{stderr}\n{stdout}".lower()
-    if not ok and any(tok in combined_err for tok in ("auth", "login", "sign in", "credential")):
+    if not ok and any(tok in combined_err for tok in AUTH_HINT_TOKENS):
         payload["hint"] = (
-            "Authentication may be missing. Run 'agy' interactively once in PowerShell "
+            "Authentication may be missing. Run 'agy' interactively once in a terminal "
             "to sign in with your Google account."
         )
 

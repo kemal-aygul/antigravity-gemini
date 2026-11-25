@@ -2,6 +2,25 @@
 
 All notable changes to the antigravity-gemini plugin. Versions follow `plugins/antigravity-gemini/.claude-plugin/plugin.json`.
 
+## 0.5.1 — 2026-11-25
+
+Fixes from a Gemini 4 Neon review of 0.5.0, each checked against the code.
+
+### Fixed
+- Windows: `.cmd` and `.bat` wrappers for `agy` are no longer run through `cmd.exe`, which could interpret `&`, `|` and `%VAR%` inside a prompt. The bridge skips them; the official CLI is `agy.exe`.
+- On timeout or cancellation the bridge now kills `agy` together with every process it started, instead of only `agy` itself.
+- When `agy` prints status lines that look like JSON, the bridge now takes the last JSON value (the result), not the first.
+- `list_antigravity_agents` checks that `workspace_dir` exists and reports `ok: false` when `agy agents` fails.
+- Custom Antigravity agents with multi-line descriptions (`description: >-`) are listed with their full description; indented lines no longer overwrite top-level fields.
+- The sign-in hint says "in a terminal" on every OS and matches specific phrases instead of any word containing "auth".
+- `check-prereqs.sh` limits the sign-in check to 45 s on macOS too (no `timeout` there), warns when `agy` is installed but not on PATH, and skips an empty `LOCALAPPDATA`.
+- `/antigravity-gemini:setup` can run the final check: it is allowed the bridge's tools and points to the check steps.
+
+### Changed
+- The `antigravity` subagent treats file-edit permission and unsandboxed or auto-approved runs as separate authorizations.
+- README: the update steps include `/plugin update` and a restart, and Google Workspace accounts are noted as not including Antigravity. INSTALL-PROMPT.md has an English introduction.
+- Unit tests for JSON extraction, frontmatter parsing, batch-wrapper refusal and process-tree cleanup.
+
 ## 0.5.0 — 2026-11-25
 
 ### Fixed

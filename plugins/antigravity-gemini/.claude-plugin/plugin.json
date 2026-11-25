@@ -1,6 +1,6 @@
 {
   "name": "antigravity-gemini",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "description": "Delegate tasks from Claude Code to Gemini models and Antigravity agents through the local Antigravity CLI (agy).",
   "license": "MIT",
   "keywords": ["antigravity", "gemini", "subagent", "mcp", "delegation"]
