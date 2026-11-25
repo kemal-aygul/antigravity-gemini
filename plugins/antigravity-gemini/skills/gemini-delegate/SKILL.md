@@ -5,13 +5,14 @@ description: Delegate a bounded task from Claude Code to a Gemini model or Antig
 
 # Delegating to Gemini through Antigravity
 
-The plugin's MCP server (`antigravity`) wraps the local Antigravity CLI (`agy`). It exposes three tools:
+The plugin's MCP server (`antigravity`) wraps the local Antigravity CLI (`agy`). It exposes four tools:
 
 | Tool | Use |
 |---|---|
 | `list_antigravity_models` | Model IDs this machine's Antigravity account can use. Call it first: the list depends on the account and the CLI version. |
 | `list_antigravity_agents` | Custom Antigravity agents. Pass `workspace_dir` to also scan a project's `.agents/agents/*.md`. |
 | `run_antigravity_agent` | Run one headless task. Returns `status`, `response`, `conversation_id` and token usage. |
+| `get_antigravity_usage` | Remaining account quota per model group (Gemini; Claude and GPT) for the weekly and five-hour windows, with UTC reset times. Makes no model call and uses no quota. Use it when the user asks about quota, or before a large batch of calls. |
 
 ## How to delegate
 
