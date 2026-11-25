@@ -15,13 +15,35 @@ SERVER_PATH = BRIDGE_DIR / "server.py"
 EXPECTED_TOOLS = {
     "list_antigravity_agents",
     "list_antigravity_models",
+    "get_antigravity_usage",
     "run_antigravity_agent",
 }
+
+
+def test_parse_usage_output() -> None:
+    import server
+
+    sample = (
+        "Gemini Models\tWeekly Limit Remaining\t93%\t2026-12-01T20:41:19Z\n"
+        "Gemini Models\tFive Hour Limit Remaining\t97.5%\t2026-11-25T23:03:43Z\n"
+        "some unrelated line\n"
+    )
+    rows = server.parse_usage_output(sample)
+    assert rows == [
+        {"group": "Gemini Models", "limit": "Weekly Limit Remaining",
+         "remaining_percent": 93, "resets_at": "2026-12-01T20:41:19Z"},
+        {"group": "Gemini Models", "limit": "Five Hour Limit Remaining",
+         "remaining_percent": 97.5, "resets_at": "2026-11-25T23:03:43Z"},
+    ], rows
+    assert server.parse_usage_output("It looks like you tried to run /usage") == []
 
 
 async def run_tests() -> None:
     sys.path.insert(0, str(BRIDGE_DIR))
     import server
+
+    test_parse_usage_output()
+    print("[0/5] parse_usage_output unit test passed")
 
     agy_bin = server.resolve_agy_binary()
     print(f"[1/5] Resolved agy binary: {agy_bin}")
@@ -53,6 +75,12 @@ async def run_tests() -> None:
             assert models_data["ok"] is True, models_data
             assert len(models_data["models"]) > 0, "Expected at least one model"
             print(f"[4b/5] list_antigravity_models ok (count={len(models_data['models'])})")
+
+            usage_res = await session.call_tool("get_antigravity_usage", {})
+            usage_data = json.loads(usage_res.content[0].text)
+            assert usage_data["ok"] is True, usage_data
+            assert len(usage_data["usage"]) > 0, "Expected at least one quota row"
+            print(f"[4c/5] get_antigravity_usage ok (rows={len(usage_data['usage'])})")
 
             run_res = await session.call_tool(
                 "run_antigravity_agent",

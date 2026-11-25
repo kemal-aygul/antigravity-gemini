@@ -246,6 +246,62 @@ async def list_antigravity_models() -> str:
     return json.dumps(payload, ensure_ascii=False, indent=2)
 
 
+def parse_usage_output(stdout: str) -> list[dict[str, Any]]:
+    """Parse `agy -p /usage` lines: group<TAB>limit<TAB>percent%<TAB>reset time."""
+    rows: list[dict[str, Any]] = []
+    for line in stdout.splitlines():
+        parts = [part.strip() for part in line.split("\t")]
+        if len(parts) != 4 or not parts[2].endswith("%"):
+            continue
+        try:
+            remaining = float(parts[2].rstrip("%"))
+        except ValueError:
+            continue
+        rows.append(
+            {
+                "group": parts[0],
+                "limit": parts[1],
+                "remaining_percent": int(remaining) if remaining.is_integer() else remaining,
+                "resets_at": parts[3],
+            }
+        )
+    return rows
+
+
+@mcp.tool()
+async def get_antigravity_usage() -> str:
+    """Show the remaining Antigravity quota for this account (no model call, no quota used).
+
+    Returns one row per model group and limit window (for example "Gemini Models",
+    "Weekly Limit Remaining"), with the remaining percent and the UTC reset time.
+    Accounts connected with a GEMINI_API_KEY have no account quota; check AI Studio instead.
+    """
+    try:
+        agy_bin = resolve_agy_binary()
+        exit_code, stdout, stderr = await _run_subprocess(
+            [agy_bin, "-p", "/usage", "--print-timeout", "30s"],
+            timeout_seconds=45,
+        )
+    except Exception as exc:
+        return json.dumps({"ok": False, "error": str(exc)}, ensure_ascii=False, indent=2)
+
+    rows = parse_usage_output(stdout)
+    payload: dict[str, Any] = {
+        "ok": exit_code == 0 and bool(rows),
+        "exit_code": exit_code,
+        "usage": rows,
+    }
+    if not rows:
+        payload["raw_output"] = stdout.strip()[:2000]
+        payload["hint"] = (
+            "No quota rows found. Accounts using a GEMINI_API_KEY have no account quota "
+            "(see AI Studio); otherwise run '/usage' inside an interactive 'agy' session."
+        )
+    if stderr.strip():
+        payload["stderr"] = stderr.strip()[:2000]
+    return json.dumps(payload, ensure_ascii=False, indent=2)
+
+
 @mcp.tool()
 async def run_antigravity_agent(
     prompt: str,
