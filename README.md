@@ -30,7 +30,9 @@ Full list with official install commands: [REQUIREMENTS.md](plugins/antigravity-
 
 ## Install
 
-In Claude Code:
+**Easiest:** paste the prompt from [INSTALL-PROMPT.md](INSTALL-PROMPT.md) into a new Claude Code session; Claude installs and checks everything, asking you before each install.
+
+Or by hand, in Claude Code:
 
 ```
 /plugin marketplace add kemal-aygul/antigravity-gemini
@@ -76,7 +78,9 @@ Bu plugin, Claude Code içinden Google Antigravity'deki Gemini modellerini ve aj
 
 **Gerekenler:** Git, uv, Antigravity CLI (`agy`) ve Antigravity'ye giriş. Tam liste ve resmî kurulum komutları [REQUIREMENTS.md](plugins/antigravity-gemini/REQUIREMENTS.md) dosyasında.
 
-**Kurulum (Claude Code içinde):**
+**En kolay yol:** [INSTALL-PROMPT.md](INSTALL-PROMPT.md) dosyasındaki promptu yeni bir Claude Code oturumuna yapıştırın; Claude her kurulumdan önce onay alarak her şeyi kurar ve kontrol eder.
+
+**Elle kurulum (Claude Code içinde):**
 
 ```
 /plugin marketplace add kemal-aygul/antigravity-gemini
