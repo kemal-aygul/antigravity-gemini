@@ -1,0 +1,16 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "antigravity-gemini",
+  "description": "Use Google Antigravity (Gemini) agents as subagents inside Claude Code.",
+  "owner": {
+    "name": "antigravity-gemini contributors"
+  },
+  "plugins": [
+    {
+      "name": "antigravity-gemini",
+      "description": "MCP bridge, subagent and skill for delegating tasks from Claude Code to Gemini models through the local Antigravity CLI (agy).",
+      "source": "./plugins/antigravity-gemini",
+      "category": "development"
+    }
+  ]
+}

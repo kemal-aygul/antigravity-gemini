@@ -1,0 +1,17 @@
+{
+  "description": "Tell Claude at session start when antigravity-gemini prerequisites are missing.",
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/scripts/check-prereqs.sh\" --quick",
+            "timeout": 15
+          }
+        ]
+      }
+    ]
+  }
+}
