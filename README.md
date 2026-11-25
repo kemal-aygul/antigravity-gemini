@@ -98,6 +98,10 @@ Bu plugin, Claude Code içinden Google Antigravity'deki Gemini modellerini ve aj
 
 **Alt ajanlar:** Her Gemini 4 ailesi için bir alt ajan gelir: `gemini-neon` (zor işler), `gemini-carbon` (Neon'a alternatif), `gemini-hydrogen` (hızlı ve rutin işler) ve `gemini-argon` (30 Kasım 2026'da kaldırılıyor). Hydrogen tüm planlarda (ücretsiz dahil) çalışır; Neon ve Carbon için ücretli Google AI Pro veya Ultra gerekir (Neon, Gemini Enterprise'da da var). Açıklamalarında yetenek ve maliyet bilgisi olduğu için Claude, işin zorluğuna göre uygun olanı seçebilir.
 
+## Changes
+
+See [CHANGELOG.md](CHANGELOG.md).
+
 ## License
 
 MIT

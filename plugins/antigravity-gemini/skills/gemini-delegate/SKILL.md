@@ -59,6 +59,6 @@ Rules of thumb:
 | `Antigravity CLI (agy) not found` | Install the Antigravity CLI, or set `AGY_BIN` to the full path of `agy`. |
 | Error with a hint about authentication | Run `agy` once in a terminal and sign in with a Google account. |
 | MCP server fails to start | Install `uv` (https://docs.astral.sh/uv/) and restart Claude Code. |
-| Timeout | Raise `timeout_seconds` (server default 300; the family subagents use 300–900) or split the task. |
+| Timeout | Raise `timeout_seconds` (server default 300, at most 940; the family subagents use 300–900) or split the task. Claude Code ends any tool call after 16 minutes. |
 
 For anything missing, run `/antigravity-gemini:setup`: it checks every requirement in `REQUIREMENTS.md` and installs what is missing after the user confirms. Run `/antigravity-gemini:agy-check` to test the whole setup with a real call.

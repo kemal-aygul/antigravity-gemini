@@ -68,7 +68,7 @@ Steps
 9. Finish with a table: what was already there, what you installed, what I still need to do.
    Then tell me to quit Claude Code completely, reopen it, and in a new session run
      /antigravity-gemini:agy-check
-   That command makes one real Gemini call to prove everything works.
+   That command makes one real Gemini call to prove everything works and shows the remaining quota.
 ````
 
 ---
@@ -80,5 +80,8 @@ Yeni bir oturumda Claude'a doğal dille iş verebilirsiniz, örneğin:
 - "Bu fonksiyonu Gemini'ye (hydrogen, medium) inceletir misin?"
 - "Bu plan için Gemini'den ikinci görüş al."
 - "Kullanabildiğim Antigravity modellerini listele."
+- "Gemini kotam ne durumda?"
+
+Plugin her Gemini 4 ailesi için bir alt ajan da kurar: `gemini-neon` (zor işler), `gemini-carbon` (Neon'a alternatif), `gemini-hydrogen` (hızlı ve rutin işler) ve `gemini-argon` (30 Kasım 2026'da kaldırılıyor). Claude işin zorluğuna göre uygun olanı seçer; isterseniz adıyla da isteyebilirsiniz.
 
 Sorun çıkarsa `/antigravity-gemini:setup` komutu gereksinimleri yeniden kontrol eder ve eksikleri onayınızla kurar.

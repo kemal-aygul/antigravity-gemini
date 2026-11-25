@@ -1,0 +1,35 @@
+name: test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  unit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - name: Unit tests (no agy needed)
+        run: uv run --no-project --with "mcp>=2.3,<3" python plugins/antigravity-gemini/server/test_server.py --unit
+      - name: Validate plugin JSON and agent frontmatter
+        run: |
+          uv run --no-project --with pyyaml python - <<'PY'
+          import glob, json, yaml
+          for f in [".claude-plugin/marketplace.json",
+                    "plugins/antigravity-gemini/.claude-plugin/plugin.json",
+                    "plugins/antigravity-gemini/.mcp.json",
+                    "plugins/antigravity-gemini/hooks/hooks.json"]:
+              json.load(open(f, encoding="utf-8"))
+              print("ok", f)
+          for f in sorted(glob.glob("plugins/antigravity-gemini/agents/*.md")):
+              meta = yaml.safe_load(open(f, encoding="utf-8").read().split("---")[1])
+              assert meta.get("name") and meta.get("description") and meta.get("tools"), f
+              print("ok", f, meta["name"])
+          PY
+      - name: Check shell script syntax
+        run: bash -n plugins/antigravity-gemini/scripts/check-prereqs.sh
