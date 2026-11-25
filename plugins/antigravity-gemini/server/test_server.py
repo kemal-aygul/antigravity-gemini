@@ -48,10 +48,98 @@ def test_build_run_command() -> None:
     assert cmd[-2:] == ["--print-timeout", "300s"], cmd
 
 
+def test_extract_json_payload() -> None:
+    import server
+
+    text = '[1] connecting...\n{"status": "starting"}\n{"status": "SUCCESS", "response": "ok"}\n'
+    assert server._extract_json_payload(text) == {"status": "SUCCESS", "response": "ok"}
+    assert server._extract_json_payload('{"a": 1}') == {"a": 1}
+    assert server._extract_json_payload("no json here") is None
+
+
+def test_parse_frontmatter() -> None:
+    import tempfile
+
+    import server
+
+    with tempfile.TemporaryDirectory() as tmp:
+        path = Path(tmp) / "agent.md"
+        path.write_text(
+            "---\n"
+            "name: my-agent\n"
+            "description: >-\n"
+            "  First line\n"
+            "  second line.\n"
+            "  model: not-a-key\n"
+            "model: 'gemini-4-hydrogen-low'\n"
+            "---\n"
+            "body\n",
+            encoding="utf-8",
+        )
+        meta = server.parse_frontmatter(path)
+    assert meta == {
+        "name": "my-agent",
+        "description": "First line second line. model: not-a-key",
+        "model": "gemini-4-hydrogen-low",
+    }, meta
+
+
+def test_batch_wrapper_refused() -> None:
+    import os
+    import tempfile
+
+    import server
+
+    with tempfile.TemporaryDirectory() as tmp:
+        wrapper = Path(tmp) / "agy.cmd"
+        wrapper.write_text("@echo off\n", encoding="utf-8")
+        old = os.environ.get("AGY_BIN")
+        os.environ["AGY_BIN"] = str(wrapper)
+        try:
+            try:
+                found = server.resolve_agy_binary()
+            except FileNotFoundError:
+                found = ""
+        finally:
+            if old is None:
+                os.environ.pop("AGY_BIN", None)
+            else:
+                os.environ["AGY_BIN"] = old
+    assert not found.lower().endswith((".cmd", ".bat")), found
+
+
+def test_timeout_kills_process_tree() -> None:
+    import tempfile
+    import time
+
+    import server
+
+    with tempfile.TemporaryDirectory() as tmp:
+        marker = Path(tmp) / "child-survived.txt"
+        child = f"import time, pathlib; time.sleep(3); pathlib.Path({str(marker)!r}).write_text('x')"
+        parent = (
+            "import subprocess, sys, time; "
+            f"subprocess.Popen([sys.executable, '-c', {child!r}]); time.sleep(30)"
+        )
+        start = time.monotonic()
+        try:
+            asyncio.run(server._run_subprocess([sys.executable, "-c", parent], timeout_seconds=1))
+            raise AssertionError("expected TimeoutError")
+        except TimeoutError:
+            pass
+        assert time.monotonic() - start < 10, "timeout cleanup took too long"
+        time.sleep(4)
+        assert not marker.exists(), "child process outlived the timeout"
+
+
 def run_unit_tests() -> None:
     sys.path.insert(0, str(BRIDGE_DIR))
     test_parse_usage_output()
     test_build_run_command()
+    test_extract_json_payload()
+    test_parse_frontmatter()
+    test_batch_wrapper_refused()
+    test_timeout_kills_process_tree()
     print("Unit tests passed")
 
 
@@ -59,7 +147,6 @@ async def run_tests() -> None:
     sys.path.insert(0, str(BRIDGE_DIR))
     import server
 
-    run_unit_tests()
 
     agy_bin = server.resolve_agy_binary()
     print(f"[1/5] Resolved agy binary: {agy_bin}")
@@ -119,4 +206,5 @@ if __name__ == "__main__":
     if "--unit" in sys.argv:
         run_unit_tests()
     else:
+        run_unit_tests()
         asyncio.run(run_tests())

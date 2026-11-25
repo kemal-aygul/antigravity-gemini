@@ -29,6 +29,26 @@ first_existing() {
   return 1
 }
 
+# Run a command with a time limit in seconds. Uses timeout or gtimeout when
+# present (macOS ships neither by default), else a background watchdog.
+run_with_limit() {
+  limit="$1"; shift
+  if command -v timeout >/dev/null 2>&1; then
+    timeout "$limit" "$@"
+  elif command -v gtimeout >/dev/null 2>&1; then
+    gtimeout "$limit" "$@"
+  else
+    "$@" &
+    cmd_pid=$!
+    ( sleep "$limit"; kill "$cmd_pid" 2>/dev/null ) &
+    watchdog_pid=$!
+    wait "$cmd_pid"
+    status=$?
+    kill "$watchdog_pid" 2>/dev/null
+    return "$status"
+  fi
+}
+
 to_unix() { if command -v cygpath >/dev/null 2>&1; then cygpath -u "$1"; else printf '%s\n' "$1"; fi; }
 local_app_data=""
 [ -n "${LOCALAPPDATA:-}" ] && local_app_data="$(to_unix "$LOCALAPPDATA")"
@@ -53,14 +73,20 @@ fi
 
 # 3. agy: the Antigravity CLI the bridge calls.
 agy_bin=""
+agy_off_path=0
 if [ -n "${AGY_BIN:-}" ] && [ -f "$(to_unix "$AGY_BIN")" ]; then
   agy_bin="$(to_unix "$AGY_BIN")"
 elif command -v agy >/dev/null 2>&1; then
   agy_bin="$(command -v agy)"
 else
-  agy_bin="$(first_existing "$local_app_data/agy/bin/agy.exe" "$HOME/AppData/Local/agy/bin/agy.exe" "$HOME/.local/bin/agy")"
+  agy_lad=""
+  [ -n "$local_app_data" ] && agy_lad="$local_app_data/agy/bin/agy.exe"
+  agy_bin="$(first_existing "$agy_lad" "$HOME/AppData/Local/agy/bin/agy.exe" "$HOME/.local/bin/agy")"
+  [ -n "$agy_bin" ] && agy_off_path=1
 fi
-if [ -n "$agy_bin" ]; then
+if [ -n "$agy_bin" ] && [ "$agy_off_path" -eq 1 ]; then
+  report WARN agy "Installed at $agy_bin but not on PATH. The MCP server still finds it; restart Claude Code (or add its folder to PATH) to use agy in a terminal."
+elif [ -n "$agy_bin" ]; then
   report OK agy "$("$agy_bin" --version 2>/dev/null | head -n 1) at $agy_bin"
 else
   report MISSING agy "Antigravity CLI (agy) is not installed, or AGY_BIN points to a missing file."
@@ -68,11 +94,7 @@ fi
 
 # 4. Sign-in: only in the full check, because agy may open a browser when nobody is signed in.
 if [ "$quick" -eq 0 ] && [ -n "$agy_bin" ]; then
-  if command -v timeout >/dev/null 2>&1; then
-    models_out="$( (timeout 45 "$agy_bin" models || true) 2>/dev/null )"
-  else
-    models_out="$( ("$agy_bin" models || true) 2>/dev/null )"
-  fi
+  models_out="$(run_with_limit 45 "$agy_bin" models 2>/dev/null || true)"
   count="$(printf '%s\n' "$models_out" | grep -c "$(printf '\t')")"
   gemini4="$(printf '%s\n' "$models_out" | grep -c '^gemini-4-')"
   if [ "$count" -gt 0 ]; then

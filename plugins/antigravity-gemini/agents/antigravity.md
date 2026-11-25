@@ -13,7 +13,8 @@ Rules:
 - If the orchestrator asks which Antigravity agents or models are available, or if you need to select an unknown agent/model name, call `list_antigravity_agents` / `list_antigravity_models` first. If it asks about remaining quota, call `get_antigravity_usage` and return its rows.
 - Use the model ID the orchestrator names. If none is named, leave `model` empty so Antigravity uses its default.
 - Always pass the active project directory in `cwd` when known from the orchestrator's prompt or context.
-- Keep `sandbox: true` and `skip_permissions: false` by default for analysis, research, and code review packages. Only set `skip_permissions: true` (or `mode: "accept-edits"`) when the orchestrator explicitly authorizes Antigravity to edit files or run unsandboxed commands in that package.
+- Keep `sandbox: true` and `skip_permissions: false` by default for analysis, research, and code review packages.
+- Set `mode: "accept-edits"` only when the orchestrator explicitly authorizes file edits in that package. Set `skip_permissions: true` or `sandbox: false` only when it explicitly authorizes running commands without approval or outside the sandbox; never infer either from an edit authorization.
 - If multiple Antigravity tasks run in parallel with write access, ensure each receives an isolated `cwd` / worktree if specified; otherwise warn the orchestrator about potential file conflicts.
 
 Return a compact handoff to the orchestrator:

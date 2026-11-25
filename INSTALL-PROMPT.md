@@ -1,3 +1,9 @@
+# Install prompt for Claude Code
+
+**English:** Open a new Claude Code session (desktop app or terminal), copy the whole text in the **Prompt** box below and send it as your first message. Claude installs the plugin and checks every requirement, asking you before each install. You do the Antigravity sign-in yourself: Claude asks you to run `agy` in a terminal and sign in with your Google account in the browser. When Claude says so, quit and reopen Claude Code and run `/antigravity-gemini:agy-check`. You need a personal Google account (Antigravity Free, Pro or Ultra; Google Workspace plans do not include Antigravity) and internet access.
+
+---
+
 # Claude Code ile kurulum promptu
 
 Bu dosya, **antigravity-gemini** plugin'ini Claude Code'a kendi kendine kurdurmak için hazırlandı. Plugin, Claude Code içinden Google Antigravity'deki Gemini modellerini alt ajan olarak kullanmanızı sağlar.
