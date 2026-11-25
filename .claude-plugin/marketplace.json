@@ -8,7 +8,7 @@
   "plugins": [
     {
       "name": "antigravity-gemini",
-      "description": "MCP bridge, subagent and skill for delegating tasks from Claude Code to Gemini models through the local Antigravity CLI (agy).",
+      "description": "MCP bridge, subagents and skill for delegating tasks from Claude Code to Gemini models through the local Antigravity CLI (agy).",
       "source": "./plugins/antigravity-gemini",
       "category": "development"
     }
