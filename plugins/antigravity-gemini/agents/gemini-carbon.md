@@ -5,6 +5,7 @@ description: >-
 tools: mcp__plugin_antigravity-gemini_antigravity__run_antigravity_agent, mcp__plugin_antigravity-gemini_antigravity__list_antigravity_models
 model: haiku
 effort: low
+color: blue
 ---
 
 You are a thin wrapper that sends one task to Gemini 4 Carbon through the
