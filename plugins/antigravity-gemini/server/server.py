@@ -29,6 +29,9 @@ def _default_agy_paths() -> list[str]:
 VALID_EFFORTS = {"low", "medium", "high", "xhigh", "max"}
 VALID_MODES = {"accept-edits", "auto", "plan"}
 FRONTMATTER_KEYS = {"name", "description", "model", "mainAgent", "subagent"}
+# Claude Code cuts every tool call at the "timeout" in .mcp.json (960 s); keep
+# agy's own limit plus the 15 s grace period below it.
+MAX_TIMEOUT_SECONDS = 940
 
 mcp = MCPServer(
     name="antigravity-bridge",
@@ -302,6 +305,43 @@ async def get_antigravity_usage() -> str:
     return json.dumps(payload, ensure_ascii=False, indent=2)
 
 
+def build_run_command(
+    agy_bin: str,
+    prompt: str,
+    *,
+    agent: str = "",
+    model: str = "",
+    effort: str = "",
+    mode: str = "",
+    sandbox: bool = True,
+    skip_permissions: bool = False,
+    conversation_id: str = "",
+    timeout_seconds: int = 300,
+) -> list[str]:
+    """Build the agy command for one headless task.
+
+    Slash commands are disabled so a prompt that starts with "/" (for example
+    "/swarm ...") is sent to the model as text instead of running a CLI command.
+    """
+    cmd = [agy_bin, "-p", prompt, "--output-format", "json", "--disable-slash-commands"]
+    if agent.strip():
+        cmd.extend(["--agent", agent.strip()])
+    if model.strip():
+        cmd.extend(["--model", model.strip()])
+    if effort:
+        cmd.extend(["--effort", effort])
+    if mode:
+        cmd.extend(["--mode", mode])
+    if sandbox:
+        cmd.append("--sandbox")
+    if skip_permissions:
+        cmd.append("--dangerously-skip-permissions")
+    if conversation_id.strip():
+        cmd.extend(["--conversation", conversation_id.strip()])
+    cmd.extend(["--print-timeout", f"{int(timeout_seconds)}s"])
+    return cmd
+
+
 @mcp.tool()
 async def run_antigravity_agent(
     prompt: str,
@@ -327,7 +367,7 @@ async def run_antigravity_agent(
         sandbox: Run with Antigravity terminal sandbox enabled (default True).
         skip_permissions: Auto-approve tool permission requests (default False).
         conversation_id: Optional conversation ID to resume.
-        timeout_seconds: Maximum execution time in seconds (default 300).
+        timeout_seconds: Maximum execution time in seconds (default 300, at most 940).
     """
     if not prompt.strip():
         return json.dumps({"ok": False, "error": "prompt cannot be empty"}, indent=2)
@@ -359,28 +399,31 @@ async def run_antigravity_agent(
 
     if timeout_seconds <= 0:
         return json.dumps({"ok": False, "error": "timeout_seconds must be > 0"}, indent=2)
+    timeout_note = ""
+    if timeout_seconds > MAX_TIMEOUT_SECONDS:
+        timeout_note = (
+            f"timeout_seconds {timeout_seconds} lowered to {MAX_TIMEOUT_SECONDS}, the most "
+            "Claude Code's MCP tool timeout allows; split longer tasks."
+        )
+        timeout_seconds = MAX_TIMEOUT_SECONDS
 
     try:
         agy_bin = resolve_agy_binary()
     except FileNotFoundError as exc:
         return json.dumps({"ok": False, "error": str(exc)}, ensure_ascii=False, indent=2)
 
-    cmd = [agy_bin, "-p", prompt, "--output-format", "json"]
-    if agent.strip():
-        cmd.extend(["--agent", agent.strip()])
-    if model.strip():
-        cmd.extend(["--model", model.strip()])
-    if effort_clean:
-        cmd.extend(["--effort", effort_clean])
-    if mode_clean:
-        cmd.extend(["--mode", mode_clean])
-    if sandbox:
-        cmd.append("--sandbox")
-    if skip_permissions:
-        cmd.append("--dangerously-skip-permissions")
-    if conversation_id.strip():
-        cmd.extend(["--conversation", conversation_id.strip()])
-    cmd.extend(["--print-timeout", f"{int(timeout_seconds)}s"])
+    cmd = build_run_command(
+        agy_bin,
+        prompt,
+        agent=agent,
+        model=model,
+        effort=effort_clean,
+        mode=mode_clean,
+        sandbox=sandbox,
+        skip_permissions=skip_permissions,
+        conversation_id=conversation_id,
+        timeout_seconds=timeout_seconds,
+    )
 
     try:
         exit_code, stdout, stderr = await _run_subprocess(
@@ -408,6 +451,8 @@ async def run_antigravity_agent(
     }
     if stderr.strip() or not ok:
         payload["stderr"] = stderr.strip()
+    if timeout_note:
+        payload["note"] = timeout_note
 
     combined_err = f"{stderr}\n{stdout}".lower()
     if not ok and any(tok in combined_err for tok in ("auth", "login", "sign in", "credential")):

@@ -38,12 +38,28 @@ def test_parse_usage_output() -> None:
     assert server.parse_usage_output("It looks like you tried to run /usage") == []
 
 
+def test_build_run_command() -> None:
+    import server
+
+    cmd = server.build_run_command("agy", "/swarm do everything", model="m", effort="low")
+    assert cmd[:3] == ["agy", "-p", "/swarm do everything"], cmd
+    assert "--disable-slash-commands" in cmd, cmd
+    assert "--sandbox" in cmd and "--dangerously-skip-permissions" not in cmd, cmd
+    assert cmd[-2:] == ["--print-timeout", "300s"], cmd
+
+
+def run_unit_tests() -> None:
+    sys.path.insert(0, str(BRIDGE_DIR))
+    test_parse_usage_output()
+    test_build_run_command()
+    print("Unit tests passed")
+
+
 async def run_tests() -> None:
     sys.path.insert(0, str(BRIDGE_DIR))
     import server
 
-    test_parse_usage_output()
-    print("[0/5] parse_usage_output unit test passed")
+    run_unit_tests()
 
     agy_bin = server.resolve_agy_binary()
     print(f"[1/5] Resolved agy binary: {agy_bin}")
@@ -99,4 +115,8 @@ async def run_tests() -> None:
 
 
 if __name__ == "__main__":
-    asyncio.run(run_tests())
+    # --unit runs only the tests that need no agy install or sign-in (used in CI).
+    if "--unit" in sys.argv:
+        run_unit_tests()
+    else:
+        asyncio.run(run_tests())
