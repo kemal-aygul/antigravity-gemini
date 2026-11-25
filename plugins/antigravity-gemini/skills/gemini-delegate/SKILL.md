@@ -16,7 +16,8 @@ The plugin's MCP server (`antigravity`) wraps the local Antigravity CLI (`agy`).
 ## How to delegate
 
 - **Quick, self-contained task:** call `run_antigravity_agent` directly from the main session.
-- **Several tasks, or a task whose raw output you don't need:** use the `antigravity` subagent. It returns a compact handoff and keeps the output out of the main context.
+- **A task for one Gemini 4 family:** use that family's subagent — `gemini-neon`, `gemini-carbon`, `gemini-hydrogen` or `gemini-argon`. Each one is pinned to its family, maps "effort <level>" in your prompt to the full model ID, and returns Gemini's answer verbatim (or a faithful summary when it is very long).
+- **Any other model or a custom Antigravity agent:** use the `antigravity` subagent. It returns a compact handoff and keeps the output out of the main context.
 - **Independent tasks:** start them in parallel (several tool calls in one message).
 - **Follow-up on the same thread:** pass the earlier `conversation_id`.
 
@@ -24,16 +25,20 @@ Write each prompt so it stands alone. The Gemini agent sees none of this convers
 
 ## Choosing a model
 
-Gemini 4 model IDs follow `gemini-4-<family>-<effort>`. Profile from a smoke test of short, tool-free tasks (all 14 variants answered correctly):
+Gemini 4 model IDs follow `gemini-4-<family>-<effort>`. Capability and cost below come from the Artificial Analysis Intelligence Index (measured at the effort shown; cost and time are averages per index task). List prices are Google's API prices per 1M tokens (input/output). With a Google-account sign-in, calls count against your Google AI plan's quota; pay-as-you-go Google Cloud projects and API keys are billed per token. Data as of 2026-11-25.
 
-| Family | Efforts | Observed behaviour | Good for |
-|---|---|---|---|
-| Hydrogen | low, medium, high, xhigh | Fastest (about 3–10 s). Thinking grows steadily with effort. | Default choice; quick checks, translation, calculations, reviews |
-| Neon | low, medium, high, xhigh | Balanced (about 6–11 s). | General reasoning, code, second opinions |
-| Argon | low, medium, high | low and medium answered with no thinking tokens. | Cheap lookups and formatting; use high for anything multi-step |
-| Carbon | low, medium, high | Slowest (about 12–28 s). low answered with no thinking tokens. | Use when you specifically want Carbon's answer |
+| Family | Subagent | Efforts | AA index | AA cost / time per task | API list price | Good for |
+|---|---|---|---|---|---|---|
+| Neon | `gemini-neon` | low, medium, high, xhigh | 62 (xhigh) | $6.44 / 25.6 min | $3 / $15 | Hard work: multi-file design, debugging, analysis, code review, second opinions |
+| Carbon | `gemini-carbon` | low, medium, high | 60 (high) | $7.76 / 38.1 min | $2 / $10, $4 / $20 from 2026-12-01 | Alternative to Neon, or an independent second Gemini answer; slower |
+| Hydrogen | `gemini-hydrogen` | low, medium, high, xhigh | 54 (xhigh) | $3.16 / 15.9 min | $1.50 / $7.50 | Default for routine work: quick checks, translation, boilerplate, tests, summaries |
+| Argon | `gemini-argon` | low, medium, high | 51 (high) | $9.95 / 23.8 min | $2 / $10 | Deprecated: Antigravity removes it on 2026-11-30. Use only when asked for by name |
 
-Also available on most accounts: `gemini-pro-orchestrator*` (multi-step orchestration), `gemini-3.8-flash-*` (lightweight), and non-Gemini models routed through Antigravity.
+For comparison on the same index: Claude Fable 5.2 65 (max), Claude Opus 5.5 59 (max), Claude Sonnet 5.5 55 (max), Claude Haiku 5.5 37 (max).
+
+Plans: Hydrogen is available on all Google AI plans; Neon and Carbon need a paid Google AI Pro or Ultra plan (Neon is also available on Gemini Enterprise).
+
+Also available on most accounts: `gemini-pro-orchestrator*` (multi-step orchestration), `gemini-3.8-flash-*` (lightweight; also removed on 2026-11-30), and non-Gemini models routed through Antigravity.
 
 Rules of thumb:
 - Start at `medium`. Use `high`/`xhigh` only for hard reasoning; `xhigh` exists only for Neon and Hydrogen.
@@ -53,6 +58,6 @@ Rules of thumb:
 | `Antigravity CLI (agy) not found` | Install the Antigravity CLI, or set `AGY_BIN` to the full path of `agy`. |
 | Error with a hint about authentication | Run `agy` once in a terminal and sign in with a Google account. |
 | MCP server fails to start | Install `uv` (https://docs.astral.sh/uv/) and restart Claude Code. |
-| Timeout | Raise `timeout_seconds` (default 300) or split the task. |
+| Timeout | Raise `timeout_seconds` (server default 300; the family subagents use 300–900) or split the task. |
 
 For anything missing, run `/antigravity-gemini:setup`: it checks every requirement in `REQUIREMENTS.md` and installs what is missing after the user confirms. Run `/antigravity-gemini:agy-check` to test the whole setup with a real call.

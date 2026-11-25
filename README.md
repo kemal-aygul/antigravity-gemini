@@ -12,6 +12,7 @@ Claude stays the orchestrator. When you want a Gemini model to do part of the wo
 |---|---|
 | MCP server `antigravity` | Wraps the local `agy` CLI with three tools: `list_antigravity_models`, `list_antigravity_agents`, `run_antigravity_agent` |
 | Subagent `antigravity` | A light wrapper that delegates a task to Antigravity and returns a compact handoff |
+| Subagents `gemini-neon`, `gemini-carbon`, `gemini-hydrogen`, `gemini-argon` | One subagent per Gemini 4 family. Their descriptions carry capability and cost figures, so Claude can pick the right one by task difficulty |
 | Skill `gemini-delegate` | Tells Claude when and how to delegate, and which Gemini model/effort to choose |
 | Command `/antigravity-gemini:setup` | Checks the requirements and installs the missing ones after you confirm |
 | Command `/antigravity-gemini:agy-check` | Checks the whole setup end to end with a real Gemini call |
@@ -57,7 +58,11 @@ Just ask Claude, for example:
 
 ## Model notes
 
-Gemini 4 model IDs look like `gemini-4-<family>-<effort>` (families: Hydrogen, Neon, Argon, Carbon). The exact list depends on your account; Claude checks it with `list_antigravity_models`. See [the skill](plugins/antigravity-gemini/skills/gemini-delegate/SKILL.md) for a short profile of each family.
+Gemini 4 model IDs look like `gemini-4-<family>-<effort>` (families: Hydrogen, Neon, Argon, Carbon). The exact list depends on your account; Claude checks it with `list_antigravity_models`. See [the skill](plugins/antigravity-gemini/skills/gemini-delegate/SKILL.md) for each family's capability, cost and best use, with Claude models on the same benchmark for comparison.
+
+Gemini 4 Argon and Gemini 3.8 Flash are removed from Antigravity on 2026-11-30; the `gemini-argon` subagent stops working then.
+
+Plans: Hydrogen works on every Google AI plan, including Free; Neon and Carbon need a paid Google AI Pro or Ultra plan (Neon is also on Gemini Enterprise).
 
 ## Safety
 
@@ -89,6 +94,8 @@ Bu plugin, Claude Code içinden Google Antigravity'deki Gemini modellerini ve aj
 ```
 
 `setup` komutu eksikleri bulur, onayınızı alıp Git, uv ve `agy`'yi kurar. Girişi siz yaparsınız: terminalde bir kez `agy` çalıştırın. Ardından Claude Code'u yeniden başlatıp `/antigravity-gemini:agy-check` ile test edin. Sonra Claude'a "Bu fonksiyonu Gemini'ye inceletir misin?" gibi isteklerde bulunabilirsiniz.
+
+**Alt ajanlar:** Her Gemini 4 ailesi için bir alt ajan gelir: `gemini-neon` (zor işler), `gemini-carbon` (Neon'a alternatif), `gemini-hydrogen` (hızlı ve rutin işler) ve `gemini-argon` (30 Kasım 2026'da kaldırılıyor). Hydrogen tüm planlarda (ücretsiz dahil) çalışır; Neon ve Carbon için ücretli Google AI Pro veya Ultra gerekir (Neon, Gemini Enterprise'da da var). Açıklamalarında yetenek ve maliyet bilgisi olduğu için Claude, işin zorluğuna göre uygun olanı seçebilir.
 
 ## License
 
