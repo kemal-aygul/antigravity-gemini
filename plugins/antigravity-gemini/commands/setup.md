@@ -15,6 +15,7 @@ Set up this machine for the antigravity-gemini plugin.
    - If a command fails, show the error and stop; do not try alternatives the user did not approve.
 5. For `signin` MISSING: do not sign in for the user and never type, ask for or store passwords or API keys. Ask the user to open a terminal, run `agy`, finish the browser sign-in, and tell you when done. Mention the account notes from REQUIREMENTS.md (personal Google account on Free/Pro/Ultra, or a Google Cloud project; Workspace plans don't include Antigravity).
 6. Run the full check again. A WARN for `uv` or `agy` "not on PATH" right after installing is expected: new installs land on PATH only for new processes.
+   Then prepare the MCP server so its first start is fast: run `uv run --quiet --script "${CLAUDE_PLUGIN_ROOT}/server/server.py" < /dev/null` once (use the full path to uv if it is not on PATH yet). It downloads Python and the `mcp` package into uv's cache and exits; without it the first start can take long enough to time out.
 7. If anything was installed, or the plugin's MCP tools (`list_antigravity_models` and the rest) are not available in this session, tell the user to restart Claude Code and then run `/antigravity-gemini:agy-check`. Otherwise run the `/antigravity-gemini:agy-check` steps now.
 
 End with a table of what was already there, what you installed, and what the user still has to do.
